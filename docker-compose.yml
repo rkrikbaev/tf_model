@@ -1,0 +1,21 @@
+version: '3.4'
+
+services:
+  tfmodel:
+    image: rkrikbaev/tf-model:latest
+    build:
+      context: app
+      dockerfile: ./Dockerfile
+    container_name: tf-model
+    restart: always
+    ports:
+      - 8005:8005
+    volumes:
+      - /opt/operator/mlservices/tf_model:/application
+      - /opt/modelregistry/mlruns:/opt/mlruns
+    command: gunicorn -b 0.0.0.0:8015 api:api --timeout 600 --worker-class sync --log-level debug
+    environment:
+      - LOG_LEVEL=DEBUG
+      - TRACKING_SERVER='http://127.0.0.1:5000'
+
+

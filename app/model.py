@@ -11,7 +11,7 @@ import mlflow.keras
 from pathlib import Path
 import datetime
 
-from utils import get_logger, LOG_LEVEL
+from app.utils import get_logger, LOG_LEVEL
 
 logger = get_logger(__name__, loglevel=LOG_LEVEL)
 logger.info(f'LOG_LEVEL: {LOG_LEVEL}')

@@ -1,7 +1,7 @@
 import falcon
 
-from model import Model
-from utils import get_logger, LOG_LEVEL, TRACKING_SERVER
+from app.model import Model
+from app.utils import get_logger, LOG_LEVEL, TRACKING_SERVER
 
 logger = get_logger(__name__, loglevel=LOG_LEVEL)
 
