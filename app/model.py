@@ -1,6 +1,6 @@
 """
     Class TensorFlow:
-    
+
 
 """
 
@@ -30,7 +30,7 @@ class Model():
         print("\n**** mlflow.keras.load_model\n")
         model = mlflow.keras.load_model(model_uri)
         print("model:", type(model))
-        
+
         X = self.prepare_dataset(dataset)
         X_series, _min, _max = self.normalize_data(X, column_index=0)
 
