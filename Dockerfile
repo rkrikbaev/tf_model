@@ -32,9 +32,10 @@ RUN chown -R appuser /logs
 
 USER appuser
 
-COPY app/ .
+COPY app/ /app
 
 ENV LOG_LEVEL=DEBUG
 ENV TIMEOUT=1000
 
-CMD [ "gunicorn", "-b", "0.0.0.0:8005", "api:api", "--timeout", "1000", "--log-level", "debug" ]
+#CMD [ "gunicorn", "-b", "0.0.0.0:8007", "api:api", "--timeout", "1000", "--log-level", "debug" ]
+CMD ["/bin/bash"]
