@@ -8,8 +8,9 @@ TRACKING_SERVER = os.environ.get('TRACKING_SERVER')
 def get_logger(name='root', loglevel='INFO'):
 
   LOG_PATH  = os.path.join(os.getcwd(), 'logs')
-  if not os.path.exists(LOG_PATH):
-    os.makedirs(LOG_PATH)
+  LOG_PATH = "/logs"
+ # if not os.path.exists(LOG_PATH):
+ #   os.makedirs(LOG_PATH)
   logger = logging.getLogger(name)
 
   # if logger 'name' already exists, return it to avoid logging duplicate

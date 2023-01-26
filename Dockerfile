@@ -16,13 +16,20 @@ COPY ./requirements.txt .
 RUN python -m pip install --upgrade pip
 RUN pip install -r requirements.txt
 
+# log folder
+RUN mkdir -p /logs
+
 # Copy the current directory contents into the container at /app
 RUN mkdir app
 WORKDIR /app
 
+
 # Creates a non-root user with an explicit UID and adds permission to access the /app folder
 # For more info, please refer to https://aka.ms/vscode-docker-python-configure-containers
-RUN adduser -u 5678 --disabled-password --gecos "" appuser && chown -R appuser /app
+RUN adduser -u 5678 --disabled-password --gecos "" appuser
+RUN chown -R appuser /app
+RUN chown -R appuser /logs
+
 USER appuser
 
 COPY app/ .

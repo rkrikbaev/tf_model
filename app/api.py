@@ -19,7 +19,7 @@ class Action:
         request = req.media
         logger.debug(f'Request from the operator: {list(request.keys())}')
         resp.status = falcon.HTTP_400
-        
+
         response = {
             "model_status": resp.status,
             "prediction": None,
@@ -45,8 +45,8 @@ class Action:
             experiment_id = model_uri.get('experiment_id')
             run_id = model_uri.get('run_id')
 
-            model_uri = f'/opt/mlruns/{experiment_id}/{run_id}/mlmodel'
-
+            model_uri = f'/mlruns/{experiment_id}/{run_id}/mlmodel'
+            logger.debug(f'model URI {model_uri}')
             # add experiment as the point
             # mlflow.set_experiment(experiment)
             # experiment = mlflow.get_experiment_by_name(experiment)
