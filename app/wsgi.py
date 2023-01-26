@@ -1,7 +1,7 @@
-from app.api import api
-import os
+#!.venv/bin/python
+from api import api
+from utils import get_logger
 
-from app.utils import get_logger
 logger = get_logger(__name__, loglevel='DEBUG')
 
 # --------- For local debugging/test only ----------
