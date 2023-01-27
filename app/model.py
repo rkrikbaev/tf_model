@@ -18,6 +18,7 @@ logger.info(f'LOG_LEVEL: {LOG_LEVEL}')
 
 
 class Model():
+    
     def __init__(self, tracking_server):
         self.model = None
         try:
@@ -27,9 +28,13 @@ class Model():
 
     def run(self, dataset, config, model_uri, **kwargs):
 
+        experiment_id = model_uri.get('experiment_id')
+        run_id = model_uri.get('run_id')
+
+        model_uri = f'/mlruns/{experiment_id}/{run_id}/mlmodel'
+
         print("\n**** mlflow.keras.load_model\n")
         model = mlflow.keras.load_model(model_uri)
-        print("model:", type(model))
 
         X = self.prepare_dataset(dataset)
         X_series, _min, _max = self.normalize_data(X, column_index=0)
@@ -37,7 +42,7 @@ class Model():
         input_window = config.get('input_window')
         if not input_window: raise RuntimeError('input_window is empty')
         output_window = config.get('output_window')
-        if not input_window: raise RuntimeError('output_window is empty')
+        if not output_window: raise RuntimeError('output_window is empty')
         granularity = config.get('granularity')
         if not granularity: raise RuntimeError('granularity is empty')
 
@@ -48,12 +53,14 @@ class Model():
 
         values = list(map(lambda x: float(x), result))
         start_point = dataset[-1][0]
+        
         if not isinstance(start_point, (int, float)): RuntimeError('start_point is not integer or float')
         series = self.to_series(values, int(start_point), granularity, output_window)
 
         return series
 
     def prepare_dataset( self, dataset ):
+        
         logger.debug(f'Prepare dataset with length: {len(dataset)}')
         # Convert dataset to pandas DataFrame
         X = pd.DataFrame(dataset)
@@ -89,16 +96,16 @@ class Model():
 
         return X_series, _min, _max
 
-    def slice_data(self, X_series, window):
+    def slice_data(self, X_series, input_window):
         logger.debug(f'Prepare matrix to slice data: {X_series.shape}')
         # create sclice
         N = X_series.shape[0]
-        k = N - window
-        X_slice = np.array([range(i, i + window) for i in range(k)])
+        k = N - input_window
+        X_slice = np.array([range(i, i + input_window) for i in range(k)])
         X_data = X_series[X_slice,:]
 
         in_data = X_data[0]
-        in_data = np.reshape(in_data, (1, window, X_data.shape[2]))
+        in_data = np.reshape(in_data, (1, input_window, X_data.shape[2]))
 
         return in_data
 
