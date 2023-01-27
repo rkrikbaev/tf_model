@@ -33,13 +33,13 @@ class Action:
 
         required_fields = {'model_config', 'dataset', 'model_uri', 'metadata', 'period'}
         keys = set(request.keys())
-        
+
         try:
 
             if required_fields == keys:
 
                 config = request.get('model_config')
-                
+
                 data = request.get('dataset')
 
                 model_uri = request.get('model_uri')
@@ -49,8 +49,6 @@ class Action:
                 response["prediction"] = result
                 response["model_uri"] = model_uri
                 response["anomalies"] = None
-            
-            response['model_status'] = resp.state
 
             logger.debug(f'Model response: {response}')
 
@@ -58,10 +56,9 @@ class Action:
 
             response['model_status'] = falcon.HTTP_500
             logger.debug(f'Service error: {exc}')
-            
+
         finally:
             resp.media = response
-            sys.exit(0)
 
 api = falcon.App()
 

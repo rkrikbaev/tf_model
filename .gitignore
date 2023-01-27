@@ -7,3 +7,4 @@ app/logs
 python.idea/
 .vscode
 .venv
+*.tar
