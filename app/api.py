@@ -1,4 +1,5 @@
 import falcon
+import sys
 
 from model import Model
 from utils import get_logger, LOG_LEVEL, TRACKING_SERVER
@@ -10,6 +11,7 @@ class Health():
     def on_get(self, req, resp):
         resp.media = "ok"
 
+
 class Action:
     def __init__(self) -> None:
         self.model = Model(tracking_server=TRACKING_SERVER)
@@ -18,7 +20,8 @@ class Action:
 
         request = req.media
         logger.debug(f'Request from the operator: {list(request.keys())}')
-        resp.status = falcon.HTTP_400
+
+        resp.status = falcon.HTTP_200
 
         response = {
             "model_status": resp.status,
@@ -30,42 +33,35 @@ class Action:
 
         required_fields = {'model_config', 'dataset', 'model_uri', 'metadata', 'period'}
         keys = set(request.keys())
-
-        if required_fields == keys:
-
-            resp.state = falcon.HTTP_500
-
-            # experiment = request.get('model_point')
-            config = request.get('model_config')
-            metadata = request.get('metadata')
-            data = request.get('dataset')
-            logger.debug(f'Length of dataset: {len(data)}')
-            model_uri = request.get('model_uri')
-
-            experiment_id = model_uri.get('experiment_id')
-            run_id = model_uri.get('run_id')
-
-            model_uri = f'/mlruns/{experiment_id}/{run_id}/mlmodel'
-            logger.debug(f'model URI {model_uri}')
-            # add experiment as the point
-            # mlflow.set_experiment(experiment)
-            # experiment = mlflow.get_experiment_by_name(experiment)
-
-            # with mlflow.start_run(experiment_id=experiment.experiment_id):
-
-            result = self.model.run(data, config, model_uri)
-
-            response["prediction"] = result
-            response["model_uri"] = model_uri
-            response["anomalies"] = None
-
-            resp.state = falcon.HTTP_200
         
-        response['model_status'] = resp.state
+        try:
 
-        logger.debug(f'Model response: {response}')
+            if required_fields == keys:
 
-        resp.media = response
+                config = request.get('model_config')
+                
+                data = request.get('dataset')
+
+                model_uri = request.get('model_uri')
+
+                result = self.model.run(data, config, model_uri)
+
+                response["prediction"] = result
+                response["model_uri"] = model_uri
+                response["anomalies"] = None
+            
+            response['model_status'] = resp.state
+
+            logger.debug(f'Model response: {response}')
+
+        except Exception as exc:
+
+            response['model_status'] = falcon.HTTP_500
+            logger.debug(f'Service error: {exc}')
+            
+        finally:
+            resp.media = response
+            sys.exit(0)
 
 api = falcon.App()
 
