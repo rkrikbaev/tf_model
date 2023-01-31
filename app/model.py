@@ -10,6 +10,7 @@ import mlflow
 import mlflow.keras
 from pathlib import Path
 import datetime
+from sklearn.preprocessing import MinMaxScaler
 
 from utils import get_logger, LOG_LEVEL
 
@@ -36,8 +37,7 @@ class Model():
         print("\n**** mlflow.keras.load_model\n")
         model = mlflow.keras.load_model(model_uri)
 
-        X = self.prepare_dataset(dataset)
-        X_series, _min, _max = self.normalize_data(X, column_index=0)
+        X_series, scalers = self.prepare_dataset(dataset, column_index=0)
 
         input_window = config.get('input_window')
         if not input_window: raise RuntimeError('input_window is empty')
@@ -49,7 +49,9 @@ class Model():
         assert X_series.shape[0] == input_window +1
 
         in_data = self.slice_data(X_series, input_window)
-        result = model.predict(in_data)[0] * _max + _min
+        pred = model.predict(inp, verbose=0).tolist()[0]
+        pred = np.reshape(pred, (1,len(p)))
+        result = scalers[0].inverse_transform(p)[0]
 
         values = list(map(lambda x: float(x), result))
         start_point = dataset[-1][0]
@@ -59,42 +61,51 @@ class Model():
 
         return series
 
-    def prepare_dataset( self, dataset ):
+    def prepare_dataset(self, dataset, column_index):
         
         logger.debug(f'Prepare dataset with length: {len(dataset)}')
         # Convert dataset to pandas DataFrame
         X = pd.DataFrame(dataset)
+        
+        anomalies = pd.DataFrame()
 
-        # Replace N/A values with previouse value
-        X.fillna( method='ffill', inplace=True )
-        # Replace 0 with previouse value
-        X.replace(to_replace=0, method='ffill', inplace=True )
+        for i in range(1, len(X)):
+          if np.isnan(X.iloc[i,0]):
+            anomalies = pd.concat([anomalies,X.iloc[[i]]])
+            anomalies.iloc[-1, 0] = 0
 
-        X.set_index(X.columns[0], inplace=True)
-        X['dt'] = pd.to_datetime(X.index)
+        X['Time'] = pd.to_datetime(X['Time'])
+        X.index = X['Time']
+        X = X.drop([X.columns[0],X.columns[2]], axis=1)
 
         # create additional features from date
-        # Day of week
-        X['of_day'] = X['dt'].dt.dayofweek
-        # of week
-        X['of_week'] = X['dt'].dt.week
-        # of month
-        X['of_month'] = X['dt'].dt.month
+        X['Month'] = X.index.month
+        X['Week'] = X.index.isocalendar().week.astype(np.int64)
+        X['Day of week'] = X.index.dayofweek
+        
+        if len(anomalies) > 0:
+            max_load = max(list(X.iloc[:,0]))
+            min_load = min(list(X.iloc[:,0]))
+            X = X.replace(np.nan, 2*min_load-max_load)
+            for i in range(len(anomalies)):
+              X.loc[anomalies.index[i]] = 2*min_load-max_load
 
-        # drop columns
-        X.drop('dt', inplace=True, axis=1)  
-
-        return X
-
-    def normalize_data(self, X, column_index):
         logger.debug(f'Normalize data {X.shape}')
         # Normalize features 
-        _max = X[X.columns[column_index]].max()
-        _min = X[X.columns[column_index]].min()
+        scalers = []
 
-        X_series = ( (np.array(X.values) - _min ) / _max )
+        for i in range(len(list(X.columns))):
+          feature = np.reshape(list(X.iloc[:,i]), (len(X.iloc[:,i]), 1))
 
-        return X_series, _min, _max
+          if i in [0]:
+            scaler = MinMaxScaler(feature_range=(-1,1)).fit(feature)
+          else:
+            scaler = MinMaxScaler(feature_range=(0,1)).fit(feature)
+          scalers.append(scaler)
+          scaled_feature = np.reshape(scaler.transform(feature),len(X.iloc[:,i])).tolist()
+          X.iloc[:,i] = scaled_feature
+        X_series = X
+        return X_series, scalers
 
     def slice_data(self, X_series, input_window):
         logger.debug(f'Prepare matrix to slice data: {X_series.shape}')
