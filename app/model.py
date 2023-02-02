@@ -8,9 +8,10 @@ import pandas as pd
 import numpy as np
 import mlflow
 import mlflow.keras
+import keras
+from sklearn.preprocessing import MinMaxScaler
 from pathlib import Path
 import datetime
-from sklearn.preprocessing import MinMaxScaler
 
 from utils import get_logger, LOG_LEVEL
 
@@ -35,9 +36,11 @@ class Model():
         model_uri = f'/mlruns/{experiment_id}/{run_id}/mlmodel'
 
         print("\n**** mlflow.keras.load_model\n")
-        model = mlflow.keras.load_model(model_uri)
+        #model = mlflow.keras.load_model(model_uri)
+        model = keras.models.load_model(model_uri, compile=False)
+        model.compile(optimizer='adam', loss='mean_absolute_error')
 
-        X_series, scalers = self.prepare_dataset(dataset, column_index=0)
+        X_series, _min, _max, scalers = self.prepare_dataset(dataset, column_index=0)
 
         input_window = config.get('input_window')
         if not input_window: raise RuntimeError('input_window is empty')
@@ -49,10 +52,9 @@ class Model():
         assert X_series.shape[0] == input_window +1
 
         in_data = self.slice_data(X_series, input_window)
-        pred = model.predict(inp, verbose=0).tolist()[0]
-        pred = np.reshape(pred, (1,len(p)))
-        result = scalers[0].inverse_transform(p)[0]
-
+        result = model.predict(in_data)[0]
+        result = np.reshape(result, (1,len(result)))
+        result = scalers[0].inverse_transform(result)[0].tolist()
         values = list(map(lambda x: float(x), result))
         start_point = dataset[-1][0]
         
@@ -61,51 +63,71 @@ class Model():
 
         return series
 
-    def prepare_dataset(self, dataset, column_index):
+    def prepare_dataset( self, dataset, column_index ):
         
         logger.debug(f'Prepare dataset with length: {len(dataset)}')
         # Convert dataset to pandas DataFrame
         X = pd.DataFrame(dataset)
-        
-        anomalies = pd.DataFrame()
 
+        X.set_index(X.columns[0], inplace=True)
+        X['dt'] = pd.to_datetime(X.index)
+
+        a = pd.DataFrame()
+        anomalies = pd.DataFrame()
+        threshold = 0.0
+        f = 0
         for i in range(1, len(X)):
           if np.isnan(X.iloc[i,0]):
             anomalies = pd.concat([anomalies,X.iloc[[i]]])
             anomalies.iloc[-1, 0] = 0
 
-        X['Time'] = pd.to_datetime(X['Time'])
-        X.index = X['Time']
-        X = X.drop([X.columns[0],X.columns[2]], axis=1)
+          delta = abs(X.iloc[i, 0] - X.iloc[i-1, 0])
+          if delta <= threshold:
+            f = 1
+            a = pd.concat([a, X.iloc[[i]]])
+            if len(a) == 1:
+              a = pd.concat([a, X.iloc[[i-1]]])
+          elif delta > threshold and f == 1:
+            f = 0
+            if len(a) >= 3:
+              anomalies = pd.concat([anomalies, a])
+            a.drop(a.index, inplace=True)
 
+        max_load = max(list(X.iloc[:,0]))
+        min_load = min(list(X.iloc[:,0]))
+        X = X.replace(np.nan, 2*min_load-max_load)
+        for i in range(len(anomalies)):
+          X.loc[anomalies.index[i]] = 2*min_load-max_load
+          
         # create additional features from date
-        X['Month'] = X.index.month
-        X['Week'] = X.index.isocalendar().week.astype(np.int64)
-        X['Day of week'] = X.index.dayofweek
-        
-        if len(anomalies) > 0:
-            max_load = max(list(X.iloc[:,0]))
-            min_load = min(list(X.iloc[:,0]))
-            X = X.replace(np.nan, 2*min_load-max_load)
-            for i in range(len(anomalies)):
-              X.loc[anomalies.index[i]] = 2*min_load-max_load
+        # Day of week
+        X['of_day'] = X['dt'].dt.dayofweek
+        # of week
+        X['of_week'] = X['dt'].dt.week
+        # of month
+        X['of_month'] = X['dt'].dt.month
+
+        X.drop('dt', inplace=True, axis=1) 
 
         logger.debug(f'Normalize data {X.shape}')
-        # Normalize features 
         scalers = []
 
         for i in range(len(list(X.columns))):
           feature = np.reshape(list(X.iloc[:,i]), (len(X.iloc[:,i]), 1))
-
-          if i in [0]:
+          
+          if i in [0] and len(anomalies) > 0:
             scaler = MinMaxScaler(feature_range=(-1,1)).fit(feature)
           else:
             scaler = MinMaxScaler(feature_range=(0,1)).fit(feature)
           scalers.append(scaler)
           scaled_feature = np.reshape(scaler.transform(feature),len(X.iloc[:,i])).tolist()
           X.iloc[:,i] = scaled_feature
-        X_series = X
-        return X_series, scalers
+          
+        _max = X[X.columns[column_index]].max()
+        _min = X[X.columns[column_index]].min()
+        X_series = np.array(X.values)
+        
+        return X_series, _min, _max, scalers
 
     def slice_data(self, X_series, input_window):
         logger.debug(f'Prepare matrix to slice data: {X_series.shape}')
