@@ -2,7 +2,7 @@ version: '3.4'
 
 services:
   tfmodel:
-    image: tf-model:latest
+    image: rkrikbaev/tf-model:latest
     container_name: tf-model
     ports:
       - 8007:8007

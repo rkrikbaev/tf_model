@@ -31,7 +31,7 @@ RUN chown -R appuser /app
 RUN chown -R appuser /logs
 
 USER appuser
-
+EXPOSE 8007
 COPY app/ /app
 
 ENV LOG_LEVEL=DEBUG
