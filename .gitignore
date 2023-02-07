@@ -8,3 +8,4 @@ python.idea/
 .vscode
 .venv
 *.tar
+**/test/mlruns*

@@ -28,11 +28,6 @@ class Model():
 
     def run(self, dataset, config, model_uri, **kwargs):
 
-        # experiment_id = model_uri.get('experiment_id')
-        # run_id = model_uri.get('run_id')
-
-        # model_uri = f'/mlruns/{experiment_id}/{run_id}'
-
         print("\n**** mlflow.keras.load_model\n")
         model = mlflow.keras.load_model(model_uri)
 
