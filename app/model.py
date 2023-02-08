@@ -21,19 +21,10 @@ logger.info(f'LOG_LEVEL: {LOG_LEVEL}')
 
 class Model():
     
-    def __init__(self, tracking_server):
+    def __init__(self):
         self.model = None
-        try:
-            mlflow.set_tracking_uri(tracking_server)
-        except:
-            logger.error("""Couldn't connect to remote MLFLOW tracking server""")
 
     def run(self, dataset, config, model_uri, **kwargs):
-
-        experiment_id = model_uri.get('experiment_id')
-        run_id = model_uri.get('run_id')
-
-        model_uri = f'/mlruns/{experiment_id}/{run_id}/mlmodel'
 
         print("\n**** mlflow.keras.load_model\n")
         
