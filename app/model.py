@@ -36,9 +36,10 @@ class Model():
         model_uri = f'/mlruns/{experiment_id}/{run_id}/mlmodel'
 
         print("\n**** mlflow.keras.load_model\n")
-        #model = mlflow.keras.load_model(model_uri)
-        model = keras.models.load_model(model_uri, compile=False)
-        model.compile(optimizer='adam', loss='mean_absolute_error')
+        
+        model = mlflow.keras.load_model(model_uri)
+        #model = keras.models.load_model(model_uri, compile=False)
+        #model.compile(optimizer='adam', loss='mean_absolute_error')
 
         X_series, _min, _max, scalers = self.prepare_dataset(dataset, column_index=0)
 
