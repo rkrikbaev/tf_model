@@ -5,7 +5,7 @@ services:
     image: rkrikbaev/tf-model:latest
     container_name: tf-model
     ports:
-      - 8007:8007
+      - 8008:8007
     volumes:
       - /opt/modelregistry/mlruns:/mlruns
       - /opt/mlservices/tf_model/app:/app
