@@ -20,26 +20,24 @@ logger.info(f'LOG_LEVEL: {LOG_LEVEL}')
 
 
 class Model():
-    
+
     def __init__(self):
         self.model = None
 
-    def run(self, dataset, config, model_uri, **kwargs):
+    def run(self, dataset, config, model_uri, period=None):
 
         print("\n**** mlflow.keras.load_model\n")
-        
+        logger.debug(model_uri)
         model = mlflow.keras.load_model(model_uri)
         #model = keras.models.load_model(model_uri, compile=False)
         #model.compile(optimizer='adam', loss='mean_absolute_error')
+        logger.debug('Model loaded')
 
         X_series, _min, _max, scalers = self.prepare_dataset(dataset, column_index=0)
 
         input_window = config.get('input_window')
-        if not input_window: raise RuntimeError('input_window is empty')
         output_window = config.get('output_window')
-        if not output_window: raise RuntimeError('output_window is empty')
         granularity = config.get('granularity')
-        if not granularity: raise RuntimeError('granularity is empty')
 
         assert X_series.shape[0] == input_window +1
 
@@ -49,14 +47,13 @@ class Model():
         result = scalers[0].inverse_transform(result)[0].tolist()
         values = list(map(lambda x: float(x), result))
         start_point = dataset[-1][0]
-        
+
         if not isinstance(start_point, (int, float)): RuntimeError('start_point is not integer or float')
         series = self.to_series(values, int(start_point), granularity, output_window)
 
         return series
 
     def prepare_dataset( self, dataset, column_index ):
-        
         logger.debug(f'Prepare dataset with length: {len(dataset)}')
         # Convert dataset to pandas DataFrame
         X = pd.DataFrame(dataset)
@@ -90,7 +87,7 @@ class Model():
         X = X.replace(np.nan, 2*min_load-max_load)
         for i in range(len(anomalies)):
           X.loc[anomalies.index[i]] = 2*min_load-max_load
-          
+
         # create additional features from date
         # Day of week
         X['of_day'] = X['dt'].dt.dayofweek
@@ -99,14 +96,14 @@ class Model():
         # of month
         X['of_month'] = X['dt'].dt.month
 
-        X.drop('dt', inplace=True, axis=1) 
+        X.drop('dt', inplace=True, axis=1)
 
         logger.debug(f'Normalize data {X.shape}')
         scalers = []
 
         for i in range(len(list(X.columns))):
           feature = np.reshape(list(X.iloc[:,i]), (len(X.iloc[:,i]), 1))
-          
+
           if i in [0] and len(anomalies) > 0:
             scaler = MinMaxScaler(feature_range=(-1,1)).fit(feature)
           else:
@@ -114,11 +111,11 @@ class Model():
           scalers.append(scaler)
           scaled_feature = np.reshape(scaler.transform(feature),len(X.iloc[:,i])).tolist()
           X.iloc[:,i] = scaled_feature
-          
+
         _max = X[X.columns[column_index]].max()
         _min = X[X.columns[column_index]].min()
         X_series = np.array(X.values)
-        
+
         return X_series, _min, _max, scalers
 
     def slice_data(self, X_series, input_window):
