@@ -8,6 +8,8 @@ import pandas as pd
 import numpy as np
 import mlflow
 import mlflow.keras
+import keras
+from sklearn.preprocessing import MinMaxScaler
 from pathlib import Path
 import datetime
 
@@ -30,6 +32,7 @@ class Model():
         #model = keras.models.load_model(model_uri, compile=False)
         #model.compile(optimizer='adam', loss='mean_absolute_error')
         logger.debug('Model loaded')
+
         X_series, _min, _max, scalers = self.prepare_dataset(dataset, column_index=0)
 
         input_window = config.get('input_window')
@@ -51,7 +54,6 @@ class Model():
         return series
 
     def prepare_dataset( self, dataset, column_index ):
-
         logger.debug(f'Prepare dataset with length: {len(dataset)}')
         # Convert dataset to pandas DataFrame
         X = pd.DataFrame(dataset)
